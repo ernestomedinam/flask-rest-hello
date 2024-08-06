@@ -8,7 +8,7 @@ from flask_swagger import swagger
 from flask_cors import CORS
 from utils import APIException, generate_sitemap
 from admin import setup_admin
-from models import db, User
+from models import db, Family, FamilyBond, Member
 #from models import Person
 
 app = Flask(__name__)
@@ -36,14 +36,39 @@ def handle_invalid_usage(error):
 def sitemap():
     return generate_sitemap(app)
 
-@app.route('/user', methods=['GET'])
-def handle_hello():
+@app.route('/families', methods=['GET', 'POST'])
+def handle_families():
+    if request.method == "POST":
+        last_name = request.json["last_name"]
+        new_family = Family(
+            last_name=last_name
+        )
+        return jsonify(new_family.serialize()), 201
+    families = Family.query.all()
+    family_dictionaries = []
+    for family in families:
+        family_dictionaries.append(
+            family.serialize()
+        )
+    return jsonify(family_dictionaries), 200
 
-    response_body = {
-        "msg": "Hello, this is your GET /user response "
-    }
-
-    return jsonify(response_body), 200
+@app.route("/members", methods=["POST"])
+def handle_members():
+    body = request.json
+    family = Family.query.get(body["family_id"])
+    if family is None:
+        return jsonify({
+            "msg": "no such family 😐"
+        }), 404
+    new_member = Member(
+        first_name=body["first_name"],
+        age=body["age"]
+    )
+    new_bond = FamilyBond(
+        member_id=new_member.id,
+        family_id=family.id
+    )
+    return jsonify(new_member.serialize()), 201
 
 # this only runs if `$ python src/app.py` is executed
 if __name__ == '__main__':
